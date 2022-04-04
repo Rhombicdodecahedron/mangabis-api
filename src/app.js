@@ -1,29 +1,61 @@
-const express = require('express');
-const createError = require('http-errors');
+const Koa = require('koa');
+
+const conditional = require('koa-conditional-get');
+const etag = require('koa-etag');
+const cors = require('koa2-cors');
+const helmet = require('koa-helmet');
+
+const bodyParser = require('koa-bodyparser');
 const cookieParser = require('cookie-parser');
-const logger = require('morgan');
-const helmet = require('helmet');
 
-const indexRouter = require('./routes/index');
+const routes = require('./routes');
 
-const errorHandler = require('./middleware/errorHandler');
+// const {logger} = require('./middleware/logger');
+const {responseTime, errors} = require('./middleware');
 
-const app = express();
+// const serve = require('koa-static')
+// const mount = require('koa-mount')
 
-app.use(helmet()); // https://expressjs.com/en/advanced/best-practice-security.html#use-helmet
-app.use(logger('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+require('dotenv').config({path: `${__dirname}/../.env`})
+
+
+const app = new Koa();
+
+// disable console.errors for pino
+app.silent = true;
+
+// Error handler
+app.use(errors);
+
+app.use(conditional());
+
+app.use(etag());
+
+app.use(bodyParser());
+
+// HTTP header security
+app.use(helmet());
+
+// Enable CORS for all routes
+app.use(cors({
+  origin: '*',
+  allowMethods: ['GET', 'POST', 'PATCH', 'DELETE'],
+  allowHeaders: ['Content-Type', 'Accept'],
+  exposeHeaders: ['mctools-api-cache', 'mctools-api-response-time'],
+}));
+
+// Set header with API response time
+app.use(responseTime);
+
 app.use(cookieParser());
 
-app.use('/', indexRouter);
+// app.use(logger('dev'));
+// app.use(Koa.json());
+// app.use(Koa.urlencoded({ extended: false }));
 
-// catch 404 and forward to error handler
-app.use((req, res, next) => {
-  next(createError.NotFound());
-});
+// Register routes
+app.use(routes());
 
-// pass any unhandled errors to the error handler
-app.use(errorHandler);
+// app.use(mount('/public', serve('./uploads')));
 
 module.exports = app;

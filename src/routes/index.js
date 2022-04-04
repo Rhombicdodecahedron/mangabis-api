@@ -1,9 +1,22 @@
-const express = require('express');
+const Router = require('koa-router');
 
-const router = express.Router();
+const FOLDERS = [
+    // todo: add more folders
+];
 
-router.get('/', (req, res) => {
-  res.send({ message: 'Hello world' });
-});
+const ROUTER = new Router();
 
-module.exports = router;
+/**
+ * Register all routes + all versions
+ *
+ * @api {get} /
+ * @returns {(function(*, *): (*))|*}
+ */
+module.exports = () => {
+    FOLDERS.forEach((routeFolder) => {
+        routeFolder.forEach((version) => {
+            ROUTER.use(version.routes());
+        });
+    });
+    return ROUTER.routes();
+};
