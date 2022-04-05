@@ -21,8 +21,8 @@ const serve = require('koa-static')
 const mount = require('koa-mount')
 const routes = require('./routes');
 
-// const {logger} = require('./middleware/logger');
-const {responseTime, errors} = require('./middleware');
+const {logger} = require('./middleware/logger');
+const {responseTime, errors, database} = require('./middleware');
 
 require('dotenv').config({path: `${__dirname}/../.env`})
 
@@ -60,5 +60,28 @@ app.use(cookieParser());
 app.use(routes());
 
 app.use(mount('/public', serve('./public')));
+
+const host = process.env.HOST
+const user = process.env.USER
+const password = process.env.PASSWORD
+const databaseName = process.env.DATABASE_NAME
+
+database.connectToDatabase(host, user, password, databaseName)
+    .then(() => {
+        logger.info('Connected to database');
+    })
+    .catch(err => {
+        if (err.code === 'ER_ACCESS_DENIED_ERROR') {
+            logger.error('Invalid credentials');
+        } else if (err.code === 'ER_BAD_DB_ERROR') {
+            logger.error('Database does not exist');
+        } else if (err.code === 'ECONNREFUSED') {
+            logger.error('Database connection refused');
+        } else if (err.code === 'ENOTFOUND') {
+            logger.error('Database host not found');
+        } else {
+            logger.error(err);
+        }
+    })
 
 module.exports = app;
